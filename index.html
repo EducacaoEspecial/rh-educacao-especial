@@ -552,15 +552,15 @@
 // BIN_PROF  → profissionais
 // BIN_DADOS → alocacoes + frequencias + log
 // ══════════════════════════════════════════════════
-const API_KEY   = '$2a$10$zhjiwNM.JQWTU4rSoA/yp.F0FYryZaQQb7igXlrndMx4CaytETbMi';
+const API_KEY   = '$2a$10$PPtG7aIvtC6F3pYn1mTqq.AmBCbXbaURh1ggW0ml42daBQDpXF4Vm';
 const BIN_PROF  = '69e0c25a36566621a8bcd2c6';
 const BIN_DADOS = '69e0cb1d36566621a8bcfc53';
 const SENHA_ACESSO = 'eduespecial2025';
 
 const URL_PROF  = `https://api.jsonbin.io/v3/b/${BIN_PROF}`;
 const URL_DADOS = `https://api.jsonbin.io/v3/b/${BIN_DADOS}`;
-const HEADERS_R = { 'X-Access-Key': API_KEY };
-const HEADERS_W = { 'Content-Type': 'application/json', 'X-Access-Key': API_KEY };
+const HEADERS_R = { 'X-Master-Key': API_KEY };
+const HEADERS_W = { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY };
 
 // ══════════════════════════════════════════════════
 // CONSTANTES
