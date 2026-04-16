@@ -1,1 +1,1255 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RH · Educação Especial</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #F5F2EC;
+    --surface: #FFFFFF;
+    --surface-2: #EDE9E0;
+    --border: #D9D3C5;
+    --text: #1C1916;
+    --text-2: #6B6355;
+    --text-3: #A09B8F;
+    --accent: #2D5A3D;
+    --accent-light: #EAF2EC;
+    --accent-2: #C4873A;
+    --accent-2-light: #FDF3E7;
+    --danger: #C0392B;
+    --danger-light: #FDECEA;
+    --shadow: 0 2px 8px rgba(28,25,22,0.08);
+    --shadow-lg: 0 8px 32px rgba(28,25,22,0.12);
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+
+  /* LAYOUT */
+  .app { display: flex; min-height: 100vh; }
+  .sidebar { width: 240px; background: var(--accent); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; }
+  .sidebar-logo { padding: 28px 24px 20px; border-bottom: 1px solid rgba(255,255,255,0.12); }
+  .sidebar-logo h1 { font-family: 'DM Serif Display', serif; font-size: 18px; color: #fff; line-height: 1.2; }
+  .sidebar-logo span { font-size: 11px; color: rgba(255,255,255,0.55); letter-spacing: 0.08em; text-transform: uppercase; display: block; margin-top: 4px; }
+  .sidebar-nav { padding: 16px 12px; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  .nav-section { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.35); padding: 12px 12px 6px; margin-top: 8px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm); color: rgba(255,255,255,0.7); cursor: pointer; font-size: 13.5px; font-weight: 400; transition: all 0.15s; border: none; background: none; width: 100%; text-align: left; }
+  .nav-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  .nav-item.active { background: rgba(255,255,255,0.15); color: #fff; font-weight: 500; }
+  .nav-item svg { flex-shrink: 0; opacity: 0.8; }
+  .nav-item.active svg { opacity: 1; }
+  .sidebar-footer { padding: 16px 12px; border-top: 1px solid rgba(255,255,255,0.12); display: flex; flex-direction: column; gap: 8px; }
+  .sync-status { font-size: 11px; color: rgba(255,255,255,0.5); display: flex; align-items: center; gap: 6px; padding: 4px 12px; }
+  .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
+  .sync-dot.syncing { background: var(--accent-2); animation: pulse 1s infinite; }
+  .sync-dot.error { background: #f87171; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* MAIN */
+  .main { margin-left: 240px; flex: 1; display: flex; flex-direction: column; }
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+  .topbar-title { font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--text); }
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .content { padding: 32px; flex: 1; }
+
+  /* STATS */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+  .stat-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); font-weight: 500; }
+  .stat-card .value { font-family: 'DM Serif Display', serif; font-size: 32px; color: var(--text); line-height: 1; }
+  .stat-card .sub { font-size: 12px; color: var(--text-2); }
+  .stat-card.accent { border-left: 3px solid var(--accent); }
+  .stat-card.warning { border-left: 3px solid var(--accent-2); }
+  .stat-card.danger { border-left: 3px solid var(--danger); }
+
+  /* TABLE */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .section-title { font-family: 'DM Serif Display', serif; font-size: 18px; }
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .table-toolbar { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .search-input { flex: 1; min-width: 200px; padding: 7px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13px; background: var(--bg); color: var(--text); outline: none; transition: border-color 0.15s; }
+  .search-input:focus { border-color: var(--accent); }
+  select.filter-select { padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13px; background: var(--bg); color: var(--text); outline: none; cursor: pointer; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-3); background: var(--bg); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg); }
+
+  /* BADGES */
+  .badge { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+  .badge-green { background: var(--accent-light); color: var(--accent); }
+  .badge-orange { background: var(--accent-2-light); color: var(--accent-2); }
+  .badge-red { background: var(--danger-light); color: var(--danger); }
+  .badge-gray { background: var(--surface-2); color: var(--text-2); }
+
+  /* BUTTONS */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; white-space: nowrap; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #234a31; }
+  .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--bg); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-ghost { background: none; border: none; color: var(--text-2); padding: 6px 8px; }
+  .btn-ghost:hover { color: var(--text); background: var(--surface-2); border-radius: var(--radius-sm); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-icon { padding: 7px; }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(28,25,22,0.4); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 24px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; transform: translateY(12px); transition: transform 0.2s; }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-title { font-family: 'DM Serif Display', serif; font-size: 18px; }
+  .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* FORM */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 12px; font-weight: 500; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; }
+  input[type="text"], input[type="email"], input[type="date"], select, textarea { padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: var(--text); background: var(--surface); outline: none; transition: border-color 0.15s; width: 100%; }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 72px; }
+
+  /* PAGES */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ALERTS */
+  .alert-box { border-radius: var(--radius-sm); padding: 12px 16px; font-size: 13px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px; }
+  .alert-warning { background: var(--accent-2-light); color: #7a4f1a; border-left: 3px solid var(--accent-2); }
+  .alert-danger { background: var(--danger-light); color: var(--danger); border-left: 3px solid var(--danger); }
+  .alert-info { background: var(--accent-light); color: var(--accent); border-left: 3px solid var(--accent); }
+
+  /* EMPTY */
+  .empty-state { text-align: center; padding: 48px 24px; color: var(--text-3); }
+  .empty-state p { font-size: 13px; }
+
+  /* VENC */
+  .venc-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 6px; border-radius: 4px; }
+  .venc-ok { background: var(--accent-light); color: var(--accent); }
+  .venc-alerta { background: var(--accent-2-light); color: #7a4f1a; }
+  .venc-vencido { background: var(--danger-light); color: var(--danger); }
+
+  /* FREQ GRID */
+  .freq-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 12px; }
+  .freq-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .freq-card .fc-name { font-size: 13px; font-weight: 500; }
+  .freq-card .fc-school { font-size: 11px; color: var(--text-3); }
+
+  /* TOAST */
+  .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+  .toast { background: var(--text); color: #fff; padding: 10px 16px; border-radius: var(--radius-sm); font-size: 13px; box-shadow: var(--shadow-lg); animation: slideIn 0.2s ease; max-width: 320px; }
+  .toast.success { background: var(--accent); }
+  .toast.error { background: var(--danger); }
+  @keyframes slideIn { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
+
+  /* CONFIRM */
+  .confirm-overlay { position: fixed; inset: 0; background: rgba(28,25,22,0.4); z-index: 300; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.15s; }
+  .confirm-overlay.open { opacity: 1; pointer-events: all; }
+  .confirm-box { background: var(--surface); border-radius: var(--radius); padding: 28px; max-width: 380px; width: 100%; box-shadow: var(--shadow-lg); }
+  .confirm-box h3 { font-family: 'DM Serif Display', serif; font-size: 17px; margin-bottom: 8px; }
+  .confirm-box p { font-size: 13px; color: var(--text-2); margin-bottom: 20px; }
+  .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* LOGIN */
+  .login-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 500; display: flex; align-items: center; justify-content: center; }
+  .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px 36px; width: 100%; max-width: 380px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 20px; }
+  .login-logo { display: flex; align-items: center; gap: 12px; }
+  .login-logo h2 { font-family: 'DM Serif Display', serif; font-size: 22px; line-height: 1.2; }
+  .login-logo span { display: block; font-size: 12px; color: var(--text-3); font-weight: 400; margin-top: 2px; }
+  .login-icon { width: 48px; height: 48px; background: var(--accent); border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .login-error { background: var(--danger-light); color: var(--danger); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; display: none; }
+  .login-error.show { display: block; }
+
+  /* UPLOAD */
+  .upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 40px; text-align: center; cursor: pointer; transition: all 0.15s; background: var(--bg); }
+  .upload-zone:hover { border-color: var(--accent); background: var(--accent-light); }
+  .upload-zone p { color: var(--text-2); font-size: 13px; margin-top: 8px; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* LOADING */
+  .loading-overlay { position: fixed; inset: 0; background: rgba(245,242,236,0.85); z-index: 400; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+  .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 14px; color: var(--text-2); }
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══ -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-icon">
+        <svg width="24" height="24" fill="none" stroke="#fff" stroke-width="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <h2>RH · Gerência<span>Educação Especial</span></h2>
+    </div>
+    <div class="form-group">
+      <label>Senha de acesso</label>
+      <input type="password" id="login-senha" placeholder="••••••••" onkeydown="if(event.key==='Enter') doLogin()">
+    </div>
+    <div class="login-error" id="login-error">Senha incorreta. Tente novamente.</div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLogin()">Entrar</button>
+  </div>
+</div>
+
+<!-- ═══ LOADING ═══ -->
+<div class="loading-overlay" id="loading-overlay" style="display:none;">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">Carregando dados...</div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div class="app">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <h1>Educação<br>Especial</h1>
+    <span>Gestão de RH</span>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-section">Principal</div>
+    <button class="nav-item active" onclick="navigate('dashboard')">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </button>
+    <div class="nav-section">Cadastros</div>
+    <button class="nav-item" onclick="navigate('profissionais')">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/></svg>
+      Profissionais
+    </button>
+    <button class="nav-item" onclick="navigate('alocacoes')">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+      Alocações
+    </button>
+    <button class="nav-item" onclick="navigate('frequencias')">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Frequências
+    </button>
+    <div class="nav-section">Sistema</div>
+    <button class="nav-item" onclick="navigate('relatorios')">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Relatórios
+    </button>
+    <button class="nav-item" onclick="navigate('planilha')">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Planilha
+    </button>
+  </div>
+  <div class="sidebar-footer">
+    <div class="sync-status" id="sync-status">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-label">Conectado</span>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="doLogout()" style="width:100%;justify-content:center;color:var(--text-2);">
+      Sair
+    </button>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <span class="topbar-title" id="topbar-title">Dashboard</span>
+    <div class="topbar-actions" id="topbar-actions"></div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div id="alertas-container"></div>
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="section-header">
+        <h2 class="section-title">Contratos a Vencer (30 dias)</h2>
+      </div>
+      <div class="table-wrap" id="tabela-vencimentos">
+        <div class="empty-state"><p>Nenhum contrato a vencer nos próximos 30 dias.</p></div>
+      </div>
+    </div>
+
+    <!-- PROFISSIONAIS -->
+    <div class="page" id="page-profissionais">
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <input class="search-input" type="text" placeholder="Buscar por nome ou CPF..." id="search-profissionais" oninput="renderProfissionais()">
+          <select class="filter-select" id="filter-funcao" onchange="renderProfissionais()">
+            <option value="">Todas as funções</option>
+            <option value="mediadora">Mediadora</option>
+            <option value="cuidadora">Cuidadora</option>
+          </select>
+          <select class="filter-select" id="filter-status-prof" onchange="renderProfissionais()">
+            <option value="">Todos os status</option>
+            <option value="ativa">Ativa</option>
+            <option value="inativa">Inativa</option>
+          </select>
+        </div>
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Nome</th><th>Função</th><th>CPF</th><th>Contato</th><th>Fim Contrato</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody id="tbody-profissionais"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ALOCAÇÕES -->
+    <div class="page" id="page-alocacoes">
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <input class="search-input" type="text" placeholder="Buscar por profissional ou estudante..." id="search-alocacoes" oninput="renderAlocacoes()">
+          <select class="filter-select" id="filter-escola-aloc" onchange="renderAlocacoes()">
+            <option value="">Todas as escolas</option>
+          </select>
+          <select class="filter-select" id="filter-status-aloc" onchange="renderAlocacoes()">
+            <option value="">Todos os status</option>
+            <option value="ativa">Ativa</option>
+            <option value="encerrada">Encerrada</option>
+          </select>
+        </div>
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Profissional</th><th>Estudante</th><th>Escola</th><th>Turno</th><th>Início</th><th>Fim</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody id="tbody-alocacoes"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- FREQUÊNCIAS -->
+    <div class="page" id="page-frequencias">
+      <div class="table-wrap" style="margin-bottom:20px;">
+        <div class="table-toolbar">
+          <input type="date" id="freq-data" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;background:var(--bg);color:var(--text);" onchange="renderFrequencias()">
+          <select class="filter-select" id="filter-escola-freq" onchange="renderFrequencias()">
+            <option value="">Todas as escolas</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="registrarFrequenciaEmMassa()">Salvar registros do dia</button>
+        </div>
+        <div id="freq-grid-container" style="padding:16px;">
+          <div class="empty-state"><p>Selecione uma data para registrar frequências.</p></div>
+        </div>
+      </div>
+      <div class="section-header">
+        <h2 class="section-title">Histórico de Frequências</h2>
+      </div>
+      <div class="table-wrap">
+        <div class="table-toolbar">
+          <input class="search-input" type="text" placeholder="Buscar por profissional..." id="search-freq" oninput="renderHistoricoFreq()">
+          <select class="filter-select" id="filter-status-freq" onchange="renderHistoricoFreq()">
+            <option value="">Todos</option>
+            <option value="presente">Presente</option>
+            <option value="falta">Falta</option>
+            <option value="atestado">Atestado</option>
+            <option value="falta justificada">Falta Justificada</option>
+          </select>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Data</th><th>Profissional</th><th>Escola</th><th>Status</th><th>Observação</th><th></th></tr>
+          </thead>
+          <tbody id="tbody-frequencias"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RELATÓRIOS -->
+    <div class="page" id="page-relatorios">
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
+        <div class="stat-card" style="cursor:pointer;" onclick="exportarPorEscola()" onmouseover="this.style.boxShadow='var(--shadow-lg)'" onmouseout="this.style.boxShadow=''">
+          <svg width="24" height="24" fill="none" stroke="var(--accent)" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <div class="label">Por Escola</div>
+          <div class="sub">Profissionais alocadas por unidade escolar</div>
+          <div style="margin-top:8px;"><span class="badge badge-green">↓ Exportar Excel</span></div>
+        </div>
+        <div class="stat-card" style="cursor:pointer;" onclick="exportarDisponiveis()" onmouseover="this.style.boxShadow='var(--shadow-lg)'" onmouseout="this.style.boxShadow=''">
+          <svg width="24" height="24" fill="none" stroke="var(--accent-2)" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div class="label">Disponíveis</div>
+          <div class="sub">Profissionais sem alocação ativa</div>
+          <div style="margin-top:8px;"><span class="badge badge-orange">↓ Exportar Excel</span></div>
+        </div>
+        <div class="stat-card" style="cursor:pointer;" onclick="exportarFrequenciasMes()" onmouseover="this.style.boxShadow='var(--shadow-lg)'" onmouseout="this.style.boxShadow=''">
+          <svg width="24" height="24" fill="none" stroke="var(--danger)" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <div class="label">Frequências do Mês</div>
+          <div class="sub">Resumo de presenças e faltas por profissional</div>
+          <div style="margin-top:8px;"><span class="badge badge-red">↓ Exportar Excel</span></div>
+        </div>
+      </div>
+      <div class="section-header" style="margin-top:8px;">
+        <h2 class="section-title">Resumo por Escola</h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Escola</th><th>Mediadoras</th><th>Cuidadoras</th><th>Total</th></tr></thead>
+          <tbody id="tbody-relatorio-escola"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PLANILHA -->
+    <div class="page" id="page-planilha">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <div>
+          <h2 class="section-title" style="margin-bottom:16px;">Importar Planilha</h2>
+          <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+            <svg width="40" height="40" fill="none" stroke="var(--accent)" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p>Clique para selecionar o arquivo <strong>.xlsx</strong></p>
+            <p style="font-size:12px;margin-top:4px;color:var(--text-3);">Os dados serão carregados e salvos automaticamente no servidor</p>
+          </div>
+          <input type="file" id="file-input" accept=".xlsx" style="display:none" onchange="importarPlanilha(this)">
+        </div>
+        <div>
+          <h2 class="section-title" style="margin-bottom:16px;">Exportar Planilha</h2>
+          <div class="stat-card" style="gap:12px;">
+            <p style="font-size:13px;color:var(--text-2);">Exporta todos os dados atuais do servidor em um arquivo <strong>.xlsx</strong> com abas separadas para cada módulo.</p>
+            <div id="export-summary" style="font-size:12px;color:var(--text-3);"></div>
+            <button class="btn btn-primary" onclick="exportarPlanilhaCompleta()" style="align-self:flex-start;">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Exportar Dados Completos
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- Modal Profissional -->
+<div class="modal-overlay" id="modal-profissional">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-prof-title">Nova Profissional</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-profissional')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="prof-id">
+      <div class="form-grid">
+        <div class="form-group full"><label>Nome Completo *</label><input type="text" id="prof-nome"></div>
+        <div class="form-group"><label>CPF</label><input type="text" id="prof-cpf" maxlength="14" oninput="maskCPF(this)"></div>
+        <div class="form-group"><label>Telefone</label><input type="text" id="prof-tel" maxlength="15" oninput="maskTel(this)"></div>
+        <div class="form-group"><label>E-mail</label><input type="email" id="prof-email"></div>
+        <div class="form-group"><label>Função *</label>
+          <select id="prof-funcao">
+            <option value="">Selecione...</option>
+            <option value="mediadora">Mediadora</option>
+            <option value="cuidadora">Cuidadora</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Formação</label><input type="text" id="prof-formacao"></div>
+        <div class="form-group"><label>Vínculo</label><input type="text" id="prof-vinculo"></div>
+        <div class="form-group"><label>Status</label>
+          <select id="prof-status"><option value="ativa">Ativa</option><option value="inativa">Inativa</option></select>
+        </div>
+        <div class="form-group"><label>Início do Contrato</label><input type="date" id="prof-inicio"></div>
+        <div class="form-group"><label>Fim do Contrato</label><input type="date" id="prof-fim"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-profissional')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarProfissional()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Alocação -->
+<div class="modal-overlay" id="modal-alocacao">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-aloc-title">Nova Alocação</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-alocacao')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="aloc-id">
+      <div class="form-grid">
+        <div class="form-group full"><label>Profissional *</label><select id="aloc-profissional"></select></div>
+        <div class="form-group full"><label>Nome do Estudante *</label><input type="text" id="aloc-estudante"></div>
+        <div class="form-group"><label>Escola *</label><select id="aloc-escola"></select></div>
+        <div class="form-group"><label>Turno *</label><select id="aloc-turno"></select></div>
+        <div class="form-group"><label>Data de Início *</label><input type="date" id="aloc-inicio"></div>
+        <div class="form-group"><label>Data de Fim</label><input type="date" id="aloc-fim"></div>
+        <div class="form-group"><label>Status</label>
+          <select id="aloc-status"><option value="ativa">Ativa</option><option value="encerrada">Encerrada</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-alocacao')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarAlocacao()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Frequência editar -->
+<div class="modal-overlay" id="modal-freq">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title">Editar Registro</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('modal-freq')">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="freq-edit-id">
+      <div class="form-group">
+        <label>Status</label>
+        <select id="freq-edit-status">
+          <option value="presente">Presente</option>
+          <option value="falta">Falta</option>
+          <option value="atestado">Atestado</option>
+          <option value="falta justificada">Falta Justificada</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Observação</label>
+        <textarea id="freq-edit-obs"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-freq')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicaoFreq()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <h3 id="confirm-title">Confirmar ação</h3>
+    <p id="confirm-msg">Tem certeza?</p>
+    <div class="confirm-actions">
+      <button class="btn btn-secondary" onclick="closeConfirm()">Cancelar</button>
+      <button class="btn btn-danger" id="confirm-btn-ok">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ══════════════════════════════════════════════════
+// CONFIGURAÇÃO — JSONBin.io (dois bins)
+// BIN_PROF  → profissionais
+// BIN_DADOS → alocacoes + frequencias + log
+// ══════════════════════════════════════════════════
+const API_KEY   = '$2a$10$r5a0ow0LDKemg9uIn5ueKegPkX.JS1A40NaaAqJApwQR4o0HSc2YG';
+const BIN_PROF  = '69e0d39caaba882197066da3';
+const BIN_DADOS = '69e0d39caaba882197066da3';
+const SENHA_ACESSO = 'eduespecial2025';
+
+const URL_PROF  = `https://api.jsonbin.io/v3/b/${BIN_PROF}`;
+const URL_DADOS = `https://api.jsonbin.io/v3/b/${BIN_DADOS}`;
+const HEADERS_R = { 'X-Master-Key': API_KEY };
+const HEADERS_W = { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY };
+
+// ══════════════════════════════════════════════════
+// CONSTANTES
+// ══════════════════════════════════════════════════
+const LISTA_TURNOS  = ['Manhã', 'Tarde', 'Integral'];
+const LISTA_ESCOLAS = [
+  'CIEP 400 - Professora Nanci Peres',
+  'EM Almirante Tamandaré','EM Bela Vista','EM Campos Elíseos',
+  'EM Goytacazes','EM Lázaro Chaves','EM Murilo Braga',
+  'EM Nossa Senhora Aparecida','EM Parque Leopoldina',
+  'EM Presidente Vargas','EM Professor Benedito Ribeiro',
+  'EM Santa Mônica','EM São Benedito','EM São Cristóvão',
+  'EM Tapera','EM Vila Industrial','EM Visconde de Araújo','Outra'
+];
+
+// ══════════════════════════════════════════════════
+// ESTADO
+// ══════════════════════════════════════════════════
+let DB = { profissionais: [], alocacoes: [], frequencias: [], log: [] };
+let confirmCallback = null;
+let freqDayMap = {};
+let isSaving = false;
+
+// ══════════════════════════════════════════════════
+// LOGIN
+// ══════════════════════════════════════════════════
+function doLogin() {
+  const senha = document.getElementById('login-senha').value;
+  if (senha !== SENHA_ACESSO) {
+    document.getElementById('login-error').classList.add('show');
+    document.getElementById('login-senha').value = '';
+    return;
+  }
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('login-error').classList.remove('show');
+  carregarDados();
+}
+
+function doLogout() {
+  document.getElementById('login-overlay').style.display = 'flex';
+  document.getElementById('login-senha').value = '';
+  DB = { profissionais: [], alocacoes: [], frequencias: [], log: [] };
+}
+
+document.getElementById('login-senha').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+// ══════════════════════════════════════════════════
+// API JSONBin
+// ══════════════════════════════════════════════════
+function setSyncStatus(state) {
+  const dot   = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  dot.className = 'sync-dot';
+  if (state === 'syncing') { dot.classList.add('syncing'); label.textContent = 'Salvando...'; }
+  else if (state === 'error') { dot.classList.add('error'); label.textContent = 'Erro de conexão'; }
+  else { label.textContent = 'Conectado'; }
+}
+
+async function carregarDados() {
+  showLoading('Carregando dados do servidor...');
+  try {
+    const [r1, r2] = await Promise.all([
+      fetch(`${URL_PROF}/latest`,  { headers: HEADERS_R }),
+      fetch(`${URL_DADOS}/latest`, { headers: HEADERS_R })
+    ]);
+    if (!r1.ok) throw new Error(`Bin prof HTTP ${r1.status}`);
+    if (!r2.ok) throw new Error(`Bin dados HTTP ${r2.status}`);
+    const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+    DB.profissionais = d1.record.profissionais || [];
+    DB.alocacoes     = d2.record.alocacoes     || [];
+    DB.frequencias   = d2.record.frequencias   || [];
+    DB.log           = d2.record.log           || [];
+    setSyncStatus('ok');
+    toast(`${DB.profissionais.length} profissionais carregadas.`, 'success');
+  } catch (e) {
+    setSyncStatus('error');
+    toast('Erro ao carregar dados. Verifique a conexão.', 'error');
+    console.error(e);
+  } finally {
+    hideLoading();
+    renderDashboard();
+  }
+}
+
+async function salvarDados(acao, detalhe) {
+  if (isSaving) return;
+  isSaving = true;
+  setSyncStatus('syncing');
+
+  DB.log.push({
+    data_hora: new Date().toISOString(),
+    usuario: 'Gerência',
+    acao: acao || '',
+    detalhe: detalhe || ''
+  });
+
+  try {
+    // Salva profissionais no bin 1, demais dados no bin 2
+    const [r1, r2] = await Promise.all([
+      fetch(URL_PROF, {
+        method: 'PUT', headers: HEADERS_W,
+        body: JSON.stringify({ profissionais: DB.profissionais })
+      }),
+      fetch(URL_DADOS, {
+        method: 'PUT', headers: HEADERS_W,
+        body: JSON.stringify({ alocacoes: DB.alocacoes, frequencias: DB.frequencias, log: DB.log })
+      })
+    ]);
+    if (!r1.ok) throw new Error(`Bin prof HTTP ${r1.status}`);
+    if (!r2.ok) throw new Error(`Bin dados HTTP ${r2.status}`);
+    setSyncStatus('ok');
+  } catch (e) {
+    setSyncStatus('error');
+    toast('Erro ao salvar. Tente novamente.', 'error');
+    console.error(e);
+  } finally {
+    isSaving = false;
+  }
+}
+
+// ══════════════════════════════════════════════════
+// LOADING
+// ══════════════════════════════════════════════════
+function showLoading(msg) {
+  document.getElementById('loading-text').textContent = msg || 'Aguarde...';
+  document.getElementById('loading-overlay').style.display = 'flex';
+}
+function hideLoading() {
+  document.getElementById('loading-overlay').style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════
+function genId(prefix) { return prefix + '-' + Date.now() + '-' + Math.floor(Math.random()*1000); }
+function today() { return new Date().toISOString().split('T')[0]; }
+function formatDate(d) { if (!d) return '—'; const [y,m,dd] = d.split('-'); return `${dd}/${m}/${y}`; }
+function diasParaVencer(d) {
+  if (!d) return null;
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const fim  = new Date(d + 'T00:00:00');
+  return Math.round((fim - hoje) / 86400000);
+}
+function maskCPF(el) {
+  let v = el.value.replace(/\D/g,'').substring(0,11);
+  v = v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2');
+  el.value = v;
+}
+function maskTel(el) {
+  let v = el.value.replace(/\D/g,'').substring(0,11);
+  if (v.length > 2) v = '(' + v.substring(0,2) + ') ' + v.substring(2);
+  if (v.length > 10) v = v.substring(0,10) + '-' + v.substring(10);
+  el.value = v;
+}
+function toast(msg, tipo='') {
+  const t = document.createElement('div');
+  t.className = 'toast ' + tipo;
+  t.textContent = msg;
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+function showConfirm(title, msg, cb) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent   = msg;
+  confirmCallback = cb;
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+function closeConfirm() {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  confirmCallback = null;
+}
+document.getElementById('confirm-btn-ok').onclick = () => { if (confirmCallback) confirmCallback(); closeConfirm(); };
+
+// ══════════════════════════════════════════════════
+// NAVEGAÇÃO
+// ══════════════════════════════════════════════════
+const PAGE_TITLES = { dashboard:'Dashboard', profissionais:'Profissionais', alocacoes:'Alocações', frequencias:'Frequências', relatorios:'Relatórios', planilha:'Planilha' };
+const PAGE_ACTIONS = {
+  profissionais: `<button class="btn btn-primary btn-sm" onclick="openModalProfissional()">
+    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Nova Profissional</button>`,
+  alocacoes: `<button class="btn btn-primary btn-sm" onclick="openModalAlocacao()">
+    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Nova Alocação</button>`
+};
+
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'" + page + "'")) n.classList.add('active');
+  });
+  document.getElementById('topbar-title').textContent = PAGE_TITLES[page] || page;
+  document.getElementById('topbar-actions').innerHTML = PAGE_ACTIONS[page] || '';
+  if (page === 'dashboard')    renderDashboard();
+  if (page === 'profissionais') renderProfissionais();
+  if (page === 'alocacoes')    { populateEscolaFilter('filter-escola-aloc'); renderAlocacoes(); }
+  if (page === 'frequencias')  { populateEscolaFilter('filter-escola-freq'); initFreqData(); }
+  if (page === 'relatorios')   renderRelatorios();
+  if (page === 'planilha')     renderPlanilhaPage();
+}
+
+// ══════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════
+function renderDashboard() {
+  const total     = DB.profissionais.length;
+  const ativas    = DB.profissionais.filter(p => p.status === 'ativa').length;
+  const alocAtivas = DB.alocacoes.filter(a => a.status === 'ativa');
+  const disponiveis = DB.profissionais.filter(p =>
+    p.status === 'ativa' && !alocAtivas.find(a => a.id_profissional === p.id)
+  ).length;
+  const vencendo = DB.profissionais.filter(p => {
+    const d = diasParaVencer(p.data_fim_contrato);
+    return d !== null && d >= 0 && d <= 30;
+  }).length;
+
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card accent"><div class="label">Total de Profissionais</div><div class="value">${total}</div><div class="sub">${ativas} ativas</div></div>
+    <div class="stat-card"><div class="label">Alocações Ativas</div><div class="value">${alocAtivas.length}</div><div class="sub">estudantes atendidos</div></div>
+    <div class="stat-card warning"><div class="label">Disponíveis</div><div class="value">${disponiveis}</div><div class="sub">sem alocação ativa</div></div>
+    <div class="stat-card ${vencendo>0?'danger':''}"><div class="label">Contratos a Vencer</div><div class="value">${vencendo}</div><div class="sub">nos próximos 30 dias</div></div>`;
+
+  const alertas = [];
+  if (disponiveis > 0) alertas.push(`<div class="alert-box alert-warning">⚠️ ${disponiveis} profissional(is) ativa(s) sem alocação.</div>`);
+  if (vencendo > 0)    alertas.push(`<div class="alert-box alert-danger">🔴 ${vencendo} contrato(s) vencem nos próximos 30 dias.</div>`);
+  document.getElementById('alertas-container').innerHTML = alertas.join('');
+
+  const venc = DB.profissionais.filter(p => { const d = diasParaVencer(p.data_fim_contrato); return d !== null && d >= 0 && d <= 30; });
+  if (venc.length === 0) {
+    document.getElementById('tabela-vencimentos').innerHTML = `<div class="empty-state"><p>Nenhum contrato a vencer nos próximos 30 dias.</p></div>`;
+    return;
+  }
+  document.getElementById('tabela-vencimentos').innerHTML = `<table><thead><tr><th>Nome</th><th>Função</th><th>Fim do Contrato</th><th>Situação</th></tr></thead><tbody>
+    ${venc.map(p => { const d = diasParaVencer(p.data_fim_contrato); const cls = d<=7?'venc-vencido':'venc-alerta';
+      return `<tr><td>${p.nome}</td><td><span class="badge ${p.funcao==='mediadora'?'badge-green':'badge-orange'}">${p.funcao}</span></td><td>${formatDate(p.data_fim_contrato)}</td><td><span class="venc-badge ${cls}">⚠ ${d} dias</span></td></tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+// ══════════════════════════════════════════════════
+// PROFISSIONAIS
+// ══════════════════════════════════════════════════
+function renderProfissionais() {
+  const q     = document.getElementById('search-profissionais').value.toLowerCase();
+  const fFunc = document.getElementById('filter-funcao').value;
+  const fStat = document.getElementById('filter-status-prof').value;
+  let lista = DB.profissionais.filter(p => {
+    return (!q || p.nome.toLowerCase().includes(q) || (p.cpf||'').includes(q))
+        && (!fFunc || p.funcao === fFunc)
+        && (!fStat || p.status === fStat);
+  });
+  const tbody = document.getElementById('tbody-profissionais');
+  if (!lista.length) { tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><p>Nenhuma profissional encontrada.</p></div></td></tr>`; return; }
+  tbody.innerHTML = lista.map(p => {
+    const dias = diasParaVencer(p.data_fim_contrato);
+    let vencBadge = '';
+    if (dias !== null) {
+      if (dias < 0)       vencBadge = `<span class="venc-badge venc-vencido">Vencido</span>`;
+      else if (dias <= 30) vencBadge = `<span class="venc-badge venc-alerta">⚠ ${dias}d</span>`;
+      else                 vencBadge = `<span class="venc-badge venc-ok">${formatDate(p.data_fim_contrato)}</span>`;
+    } else { vencBadge = '—'; }
+    return `<tr>
+      <td style="color:var(--text-3);font-size:12px;">${p.id}</td>
+      <td><strong>${p.nome}</strong></td>
+      <td><span class="badge ${p.funcao==='mediadora'?'badge-green':'badge-orange'}">${p.funcao||'—'}</span></td>
+      <td style="font-size:12px;color:var(--text-2);">${p.cpf||'—'}</td>
+      <td style="font-size:12px;">${p.telefone||p.email||'—'}</td>
+      <td>${vencBadge}</td>
+      <td><span class="badge ${p.status==='ativa'?'badge-green':'badge-gray'}">${p.status}</span></td>
+      <td><div style="display:flex;gap:4px;">
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="editarProfissional('${p.id}')">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="excluirProfissional('${p.id}')" style="color:var(--danger);">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+      </div></td></tr>`;
+  }).join('');
+}
+
+function openModalProfissional() {
+  document.getElementById('modal-prof-title').textContent = 'Nova Profissional';
+  document.getElementById('prof-id').value = '';
+  ['nome','cpf','tel','email','funcao','formacao','vinculo','inicio','fim'].forEach(f => { const el = document.getElementById('prof-'+f); if (el) el.value = ''; });
+  document.getElementById('prof-status').value = 'ativa';
+  document.getElementById('modal-profissional').classList.add('open');
+}
+
+function editarProfissional(id) {
+  const p = DB.profissionais.find(x => x.id === id); if (!p) return;
+  document.getElementById('modal-prof-title').textContent = 'Editar Profissional';
+  document.getElementById('prof-id').value        = p.id;
+  document.getElementById('prof-nome').value      = p.nome||'';
+  document.getElementById('prof-cpf').value       = p.cpf||'';
+  document.getElementById('prof-tel').value       = p.telefone||'';
+  document.getElementById('prof-email').value     = p.email||'';
+  document.getElementById('prof-funcao').value    = p.funcao||'';
+  document.getElementById('prof-formacao').value  = p.formacao||'';
+  document.getElementById('prof-vinculo').value   = p.vinculo||'';
+  document.getElementById('prof-status').value    = p.status||'ativa';
+  document.getElementById('prof-inicio').value    = p.data_inicio_contrato||'';
+  document.getElementById('prof-fim').value       = p.data_fim_contrato||'';
+  document.getElementById('modal-profissional').classList.add('open');
+}
+
+async function salvarProfissional() {
+  const nome = document.getElementById('prof-nome').value.trim();
+  const funcao = document.getElementById('prof-funcao').value;
+  if (!nome || !funcao) { toast('Preencha nome e função.', 'error'); return; }
+  const id    = document.getElementById('prof-id').value;
+  const dados = { nome, cpf: document.getElementById('prof-cpf').value, funcao,
+    telefone: document.getElementById('prof-tel').value, email: document.getElementById('prof-email').value,
+    formacao: document.getElementById('prof-formacao').value, vinculo: document.getElementById('prof-vinculo').value,
+    status: document.getElementById('prof-status').value,
+    data_inicio_contrato: document.getElementById('prof-inicio').value,
+    data_fim_contrato: document.getElementById('prof-fim').value };
+  if (id) {
+    const idx = DB.profissionais.findIndex(x => x.id === id);
+    DB.profissionais[idx] = { ...DB.profissionais[idx], ...dados };
+    toast('Profissional atualizada.', 'success');
+    await salvarDados('Editar profissional', nome);
+  } else {
+    dados.id = genId('PSP');
+    DB.profissionais.push(dados);
+    toast('Profissional cadastrada.', 'success');
+    await salvarDados('Cadastrar profissional', nome);
+  }
+  closeModal('modal-profissional');
+  renderProfissionais();
+}
+
+function excluirProfissional(id) {
+  const p = DB.profissionais.find(x => x.id === id);
+  showConfirm('Excluir Profissional', `Deseja excluir "${p.nome}"?`, async () => {
+    DB.profissionais = DB.profissionais.filter(x => x.id !== id);
+    await salvarDados('Excluir profissional', p.nome);
+    toast('Profissional excluída.', 'success');
+    renderProfissionais();
+  });
+}
+
+// ══════════════════════════════════════════════════
+// ALOCAÇÕES
+// ══════════════════════════════════════════════════
+function populateEscolaFilter(selectId) {
+  const sel = document.getElementById(selectId);
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Todas as escolas</option>' + LISTA_ESCOLAS.map(e => `<option value="${e}" ${e===cur?'selected':''}>${e}</option>`).join('');
+}
+
+function renderAlocacoes() {
+  const q     = document.getElementById('search-alocacoes').value.toLowerCase();
+  const fEsc  = document.getElementById('filter-escola-aloc').value;
+  const fStat = document.getElementById('filter-status-aloc').value;
+  let lista = DB.alocacoes.filter(a => {
+    const prof = DB.profissionais.find(p => p.id === a.id_profissional);
+    return (!q || (prof&&prof.nome.toLowerCase().includes(q)) || (a.nome_estudante||'').toLowerCase().includes(q))
+        && (!fEsc  || a.escola === fEsc)
+        && (!fStat || a.status === fStat);
+  });
+  const tbody = document.getElementById('tbody-alocacoes');
+  if (!lista.length) { tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><p>Nenhuma alocação encontrada.</p></div></td></tr>`; return; }
+  tbody.innerHTML = lista.map(a => {
+    const prof = DB.profissionais.find(p => p.id === a.id_profissional);
+    return `<tr>
+      <td style="color:var(--text-3);font-size:12px;">${a.id}</td>
+      <td><strong>${prof?prof.nome:'—'}</strong><br><small style="color:var(--text-3)">${prof?prof.funcao:''}</small></td>
+      <td>${a.nome_estudante||'—'}</td>
+      <td style="font-size:12px;">${a.escola||'—'}</td>
+      <td><span class="badge badge-gray">${a.turno||'—'}</span></td>
+      <td style="font-size:12px;">${formatDate(a.data_inicio)}</td>
+      <td style="font-size:12px;">${formatDate(a.data_fim)}</td>
+      <td><span class="badge ${a.status==='ativa'?'badge-green':'badge-gray'}">${a.status}</span></td>
+      <td><div style="display:flex;gap:4px;">
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="editarAlocacao('${a.id}')">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="excluirAlocacao('${a.id}')" style="color:var(--danger);">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+      </div></td></tr>`;
+  }).join('');
+}
+
+function openModalAlocacao() {
+  document.getElementById('modal-aloc-title').textContent = 'Nova Alocação';
+  document.getElementById('aloc-id').value = '';
+  document.getElementById('aloc-estudante').value = '';
+  document.getElementById('aloc-inicio').value = today();
+  document.getElementById('aloc-fim').value = '';
+  document.getElementById('aloc-status').value = 'ativa';
+  const selProf = document.getElementById('aloc-profissional');
+  selProf.innerHTML = '<option value="">Selecione...</option>' +
+    DB.profissionais.filter(p => p.status==='ativa').map(p => `<option value="${p.id}">${p.nome} (${p.funcao})</option>`).join('');
+  const selEsc = document.getElementById('aloc-escola');
+  selEsc.innerHTML = '<option value="">Selecione...</option>' + LISTA_ESCOLAS.map(e => `<option value="${e}">${e}</option>`).join('');
+  const selTurno = document.getElementById('aloc-turno');
+  selTurno.innerHTML = '<option value="">Selecione...</option>' + LISTA_TURNOS.map(t => `<option value="${t}">${t}</option>`).join('');
+  document.getElementById('modal-alocacao').classList.add('open');
+}
+
+function editarAlocacao(id) {
+  const a = DB.alocacoes.find(x => x.id === id); if (!a) return;
+  openModalAlocacao();
+  document.getElementById('modal-aloc-title').textContent = 'Editar Alocação';
+  document.getElementById('aloc-id').value           = a.id;
+  document.getElementById('aloc-profissional').value = a.id_profissional;
+  document.getElementById('aloc-estudante').value    = a.nome_estudante;
+  document.getElementById('aloc-escola').value       = a.escola;
+  document.getElementById('aloc-turno').value        = a.turno;
+  document.getElementById('aloc-inicio').value       = a.data_inicio;
+  document.getElementById('aloc-fim').value          = a.data_fim;
+  document.getElementById('aloc-status').value       = a.status;
+}
+
+async function salvarAlocacao() {
+  const profId    = document.getElementById('aloc-profissional').value;
+  const estudante = document.getElementById('aloc-estudante').value.trim();
+  const escola    = document.getElementById('aloc-escola').value;
+  const turno     = document.getElementById('aloc-turno').value;
+  const inicio    = document.getElementById('aloc-inicio').value;
+  if (!profId || !estudante || !escola || !turno || !inicio) { toast('Preencha os campos obrigatórios.', 'error'); return; }
+  const id = document.getElementById('aloc-id').value;
+  const dados = { id_profissional: profId, nome_estudante: estudante, escola, turno, data_inicio: inicio,
+    data_fim: document.getElementById('aloc-fim').value, status: document.getElementById('aloc-status').value };
+  if (id) {
+    const idx = DB.alocacoes.findIndex(x => x.id === id);
+    DB.alocacoes[idx] = { ...DB.alocacoes[idx], ...dados };
+    toast('Alocação atualizada.', 'success');
+    await salvarDados('Editar alocação', estudante);
+  } else {
+    dados.id = genId('ALOC');
+    DB.alocacoes.push(dados);
+    toast('Alocação registrada.', 'success');
+    await salvarDados('Nova alocação', estudante);
+  }
+  closeModal('modal-alocacao');
+  renderAlocacoes();
+}
+
+function excluirAlocacao(id) {
+  const a = DB.alocacoes.find(x => x.id === id);
+  showConfirm('Excluir Alocação', `Deseja excluir a alocação de "${a.nome_estudante}"?`, async () => {
+    DB.alocacoes = DB.alocacoes.filter(x => x.id !== id);
+    await salvarDados('Excluir alocação', a.nome_estudante);
+    toast('Alocação excluída.', 'success');
+    renderAlocacoes();
+  });
+}
+
+// ══════════════════════════════════════════════════
+// FREQUÊNCIAS
+// ══════════════════════════════════════════════════
+function initFreqData() {
+  const inp = document.getElementById('freq-data');
+  if (!inp.value) inp.value = today();
+  renderFrequencias(); renderHistoricoFreq();
+}
+
+function renderFrequencias() {
+  const data  = document.getElementById('freq-data').value;
+  const escola = document.getElementById('filter-escola-freq').value;
+  if (!data) return;
+  const alocAtivas = DB.alocacoes.filter(a =>
+    a.status==='ativa' && a.data_inicio<=data && (!a.data_fim||a.data_fim>=data) && (!escola||a.escola===escola));
+  if (!alocAtivas.length) {
+    document.getElementById('freq-grid-container').innerHTML = `<div class="empty-state"><p>Nenhuma profissional alocada nesta data.</p></div>`;
+    renderHistoricoFreq(); return;
+  }
+  freqDayMap = {};
+  DB.frequencias.filter(f => f.data===data).forEach(f => { freqDayMap[f.id_profissional] = { status: f.status, obs: f.observacao }; });
+  const statusOpts = ['presente','falta','atestado','falta justificada'];
+  const cards = alocAtivas.map(a => {
+    const prof = DB.profissionais.find(p => p.id===a.id_profissional); if (!prof) return '';
+    const status = (freqDayMap[a.id_profissional]||{}).status || 'presente';
+    return `<div class="freq-card" id="fcard-${a.id_profissional}">
+      <div class="fc-name">${prof.nome}</div>
+      <div class="fc-school">${a.escola} · ${a.turno}</div>
+      <select onchange="freqDayMap['${a.id_profissional}']={...(freqDayMap['${a.id_profissional}']||{}),status:this.value}"
+        style="margin-top:6px;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;width:100%;">
+        ${statusOpts.map(s=>`<option value="${s}" ${s===status?'selected':''}>${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('')}
+      </select></div>`;
+  }).join('');
+  document.getElementById('freq-grid-container').innerHTML = `<div class="freq-grid">${cards}</div>`;
+  renderHistoricoFreq();
+}
+
+async function registrarFrequenciaEmMassa() {
+  const data = document.getElementById('freq-data').value;
+  if (!data) { toast('Selecione uma data.', 'error'); return; }
+  document.querySelectorAll('[id^="fcard-"]').forEach(card => {
+    const profId = card.id.replace('fcard-','');
+    const sel    = card.querySelector('select');
+    if (!sel) return;
+    freqDayMap[profId] = { ...(freqDayMap[profId]||{}), status: sel.value };
+  });
+  let count = 0;
+  Object.entries(freqDayMap).forEach(([profId, reg]) => {
+    DB.frequencias = DB.frequencias.filter(f => !(f.id_profissional===profId && f.data===data));
+    DB.frequencias.push({ id: genId('FREQ'), id_profissional: profId, data, status: reg.status||'presente', observacao: reg.obs||'' });
+    count++;
+  });
+  await salvarDados('Frequência em massa', `${data} — ${count} registros`);
+  toast(`${count} frequências salvas no servidor.`, 'success');
+  renderHistoricoFreq();
+}
+
+function renderHistoricoFreq() {
+  const q     = document.getElementById('search-freq').value.toLowerCase();
+  const fStat = document.getElementById('filter-status-freq').value;
+  let lista = [...DB.frequencias].sort((a,b) => b.data.localeCompare(a.data))
+    .filter(f => {
+      const prof = DB.profissionais.find(p => p.id===f.id_profissional);
+      return (!q || (prof&&prof.nome.toLowerCase().includes(q))) && (!fStat||f.status===fStat);
+    });
+  const tbody = document.getElementById('tbody-frequencias');
+  if (!lista.length) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>Nenhum registro.</p></div></td></tr>`; return; }
+  const badgeMap = { presente:'badge-green', falta:'badge-red', atestado:'badge-orange', 'falta justificada':'badge-orange' };
+  tbody.innerHTML = lista.slice(0,200).map(f => {
+    const prof = DB.profissionais.find(p => p.id===f.id_profissional);
+    const aloc = DB.alocacoes.find(a => a.id_profissional===f.id_profissional && a.status==='ativa');
+    return `<tr>
+      <td style="font-size:12px;">${formatDate(f.data)}</td>
+      <td>${prof?prof.nome:f.id_profissional}</td>
+      <td style="font-size:12px;color:var(--text-3);">${aloc?aloc.escola:'—'}</td>
+      <td><span class="badge ${badgeMap[f.status]||'badge-gray'}">${f.status}</span></td>
+      <td style="font-size:12px;color:var(--text-2);">${f.observacao||'—'}</td>
+      <td><button class="btn btn-ghost btn-icon btn-sm" onclick="editarFreq('${f.id}')">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button></td></tr>`;
+  }).join('');
+}
+
+function editarFreq(id) {
+  const f = DB.frequencias.find(x => x.id===id); if (!f) return;
+  document.getElementById('freq-edit-id').value     = f.id;
+  document.getElementById('freq-edit-status').value = f.status;
+  document.getElementById('freq-edit-obs').value    = f.observacao||'';
+  document.getElementById('modal-freq').classList.add('open');
+}
+
+async function salvarEdicaoFreq() {
+  const id  = document.getElementById('freq-edit-id').value;
+  const idx = DB.frequencias.findIndex(x => x.id===id);
+  DB.frequencias[idx].status     = document.getElementById('freq-edit-status').value;
+  DB.frequencias[idx].observacao = document.getElementById('freq-edit-obs').value;
+  await salvarDados('Editar frequência', id);
+  toast('Registro atualizado.', 'success');
+  closeModal('modal-freq');
+  renderHistoricoFreq();
+}
+
+// ══════════════════════════════════════════════════
+// RELATÓRIOS
+// ══════════════════════════════════════════════════
+function renderRelatorios() {
+  const alocAtivas = DB.alocacoes.filter(a => a.status==='ativa');
+  const escMap = {};
+  alocAtivas.forEach(a => {
+    const prof = DB.profissionais.find(p => p.id===a.id_profissional);
+    if (!escMap[a.escola]) escMap[a.escola] = { med:0, cui:0 };
+    if (prof&&prof.funcao==='mediadora') escMap[a.escola].med++;
+    else if (prof&&prof.funcao==='cuidadora') escMap[a.escola].cui++;
+  });
+  const rows = Object.entries(escMap).sort((a,b) => a[0].localeCompare(b[0]));
+  const tbody = document.getElementById('tbody-relatorio-escola');
+  if (!rows.length) { tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><p>Sem dados de alocação.</p></div></td></tr>`; return; }
+  tbody.innerHTML = rows.map(([escola,cnt]) => `<tr><td>${escola}</td><td>${cnt.med}</td><td>${cnt.cui}</td><td><strong>${cnt.med+cnt.cui}</strong></td></tr>`).join('');
+}
+
+function exportarPorEscola() {
+  const rows = DB.alocacoes.filter(a=>a.status==='ativa').map(a => {
+    const prof = DB.profissionais.find(p=>p.id===a.id_profissional);
+    return { Escola: a.escola, Profissional: prof?prof.nome:'—', Função: prof?prof.funcao:'—', Turno: a.turno, Estudante: a.nome_estudante };
+  });
+  exportarExcel([{nome:'Por Escola', dados:rows}], 'relatorio_por_escola');
+}
+
+function exportarDisponiveis() {
+  const alocAtivas = DB.alocacoes.filter(a=>a.status==='ativa');
+  const rows = DB.profissionais.filter(p => p.status==='ativa' && !alocAtivas.find(a=>a.id_profissional===p.id))
+    .map(p => ({ Nome:p.nome, Função:p.funcao, CPF:p.cpf, Telefone:p.telefone, Email:p.email }));
+  exportarExcel([{nome:'Disponíveis', dados:rows}], 'relatorio_disponiveis');
+}
+
+function exportarFrequenciasMes() {
+  const mes = today().substring(0,7);
+  const rows = DB.frequencias.filter(f=>f.data.startsWith(mes)).map(f => {
+    const prof = DB.profissionais.find(p=>p.id===f.id_profissional);
+    return { Data: formatDate(f.data), Profissional: prof?prof.nome:'—', Status: f.status, Observação: f.observacao };
+  });
+  exportarExcel([{nome:'Frequências', dados:rows}], 'frequencias_mes');
+}
+
+function exportarExcel(sheets, nome) {
+  const wb = XLSX.utils.book_new();
+  sheets.forEach(s => {
+    const ws = XLSX.utils.json_to_sheet(s.dados.length?s.dados:[{}]);
+    XLSX.utils.book_append_sheet(wb, ws, s.nome);
+  });
+  XLSX.writeFile(wb, `${nome}_${today()}.xlsx`);
+  toast('Relatório exportado.', 'success');
+}
+
+// ══════════════════════════════════════════════════
+// PLANILHA — IMPORT / EXPORT
+// ══════════════════════════════════════════════════
+function renderPlanilhaPage() {
+  const s = document.getElementById('export-summary');
+  if (s) s.textContent = `${DB.profissionais.length} profissionais · ${DB.alocacoes.length} alocações · ${DB.frequencias.length} frequências`;
+}
+
+async function importarPlanilha(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      showLoading('Lendo planilha...');
+      const wb = XLSX.read(e.target.result, { type: 'binary' });
+      const lerAba = nome => wb.SheetNames.includes(nome) ? XLSX.utils.sheet_to_json(wb.Sheets[nome]) : [];
+
+      const profs = lerAba('profissionais');
+      const alocs = lerAba('alocacoes');
+      const freqs = lerAba('frequencias');
+      const logs  = lerAba('log');
+
+      if (profs.length === 0 && alocs.length === 0) {
+        hideLoading();
+        toast('Arquivo sem dados reconhecidos. Verifique o modelo.', 'error');
+        return;
+      }
+
+      DB.profissionais = profs.map(r => ({
+        id: r.id || genId('PSP'), nome: r.nome||'', cpf: r.cpf||'',
+        telefone: r.telefone||'', email: r.email||'', funcao: r.funcao||'',
+        formacao: r.formacao||'', vinculo: r.vinculo||'', status: r.status||'ativa',
+        data_inicio_contrato: r.data_inicio_contrato||'', data_fim_contrato: r.data_fim_contrato||''
+      }));
+      DB.alocacoes = alocs.map(r => ({
+        id: r.id||genId('ALOC'), id_profissional: r.id_profissional||'',
+        nome_estudante: r.nome_estudante||'', escola: r.escola||'', turno: r.turno||'',
+        data_inicio: r.data_inicio||'', data_fim: r.data_fim||'', status: r.status||'ativa'
+      }));
+      DB.frequencias = freqs.map(r => ({
+        id: r.id||genId('FREQ'), id_profissional: r.id_profissional||'',
+        data: r.data||'', status: r.status||'presente', observacao: r.observacao||''
+      }));
+      DB.log = logs.length ? logs : DB.log;
+
+      hideLoading();
+      await salvarDados('Importar planilha', `${file.name} — ${DB.profissionais.length} profissionais`);
+      toast(`Importação concluída: ${DB.profissionais.length} profissionais carregadas e salvas.`, 'success');
+      renderPlanilhaPage();
+    } catch(err) {
+      hideLoading();
+      toast('Erro ao ler arquivo. Verifique o formato.', 'error');
+      console.error(err);
+    }
+  };
+  reader.readAsBinaryString(file);
+  input.value = '';
+}
+
+function exportarPlanilhaCompleta() {
+  const wb = XLSX.utils.book_new();
+  const addSheet = (nome, dados) => {
+    const ws = XLSX.utils.json_to_sheet(dados.length ? dados : [{}]);
+    XLSX.utils.book_append_sheet(wb, ws, nome);
+  };
+  addSheet('profissionais', DB.profissionais);
+  addSheet('alocacoes',     DB.alocacoes);
+  addSheet('frequencias',   DB.frequencias);
+  addSheet('log',           DB.log);
+  XLSX.writeFile(wb, `rh_educacao_especial_${today()}.xlsx`);
+  toast('Planilha exportada com sucesso.', 'success');
+}
+
+// ══════════════════════════════════════════════════
+// MODAIS / UTILS
+// ══════════════════════════════════════════════════
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target===o) closeModal(o.id); });
+});
+</script>
+</body>
+</html>
 
